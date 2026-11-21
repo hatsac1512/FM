@@ -1,0 +1,1140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FM27 Tactic Lab</title>
+<link rel="icon" href="data:,">
+<script>
+/* theme + motion before first paint (avoids a colour flash) */
+(function () {
+  var d = document.documentElement, t = null, m = null;
+  try { t = localStorage.getItem('fm27_theme'); m = localStorage.getItem('fm27_motion'); } catch (e) {}
+  if (t !== 'dark' && t !== 'light') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  if (m !== 'on' && m !== 'off') m = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'on';
+  d.setAttribute('data-theme', t); d.setAttribute('data-motion', m);
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ═══ Lovable-style look, taken from "Lovable 2.0 Recent.mp4":
+   warm cream canvas with soft blurred blue → magenta → red → orange glows and film grain,
+   tight bold sans headlines, black pill buttons that glow, a blue "Publish" accent,
+   pink gradient spheres, a gradient text caret. Dark mode = black canvas with the same glows. ═══ */
+:root{
+  --bg:#F6F1EA; --card:rgba(255,255,255,.62); --card-solid:#FBF8F3; --soft:rgba(20,15,10,.055);
+  --bd:rgba(20,15,10,.08); --bd2:rgba(20,15,10,.15); --rim:rgba(255,255,255,.9);
+  --tx:#37332E; --hl:#0B0B0B; --mu:#6E6A63; --mu2:#9A958C;
+  --blue:#2F5BFF; --pink:#F83B60; --orange:#FF6A1F; --magenta:#E64BC8; --indigo:#3A46FF;
+  --ink:#0B0B0B; --on-ink:#FFFFFF; --good:#12803F; --bad:#D93025;
+  --fld:rgba(255,255,255,.72); --th:#F3EEE6;
+  --sh:0 1px 0 rgba(255,255,255,.9) inset,0 14px 40px rgba(70,45,20,.07),0 1px 2px rgba(70,45,20,.05);
+  --blur:blur(18px) saturate(140%);
+  --glow-a:rgba(248,59,96,.50); --glow-b:rgba(255,106,31,.46); --glow-c:rgba(58,70,255,.34); --glow-d:rgba(230,75,200,.32);
+  --grain:.10;
+  --grid:rgba(20,15,10,.07); --axis:rgba(20,15,10,.2); --ring:#F6F1EA; --tip:rgba(255,255,255,.97);
+  /* source colours: checked for colour-blindness on the cream canvas (first three also all-pairs safe) */
+  --s-fmarena:#3b5bff; --s-sortitoutsi:#f0561d; --s-fmtactichub:#12a678; --s-fmax:#eda100; --s-metafm:#e0409f; --s-fmdelicious:#7a3fe0; --s-other:#8a857c; --s-agg:#3A3733;
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A0807; --card:rgba(255,255,255,.065); --card-solid:#17130F; --soft:rgba(255,255,255,.07);
+  --bd:rgba(255,255,255,.10); --bd2:rgba(255,255,255,.2); --rim:rgba(255,255,255,.16);
+  --tx:#D9D3C9; --hl:#FFFFFF; --mu:#A39D92; --mu2:#6F6A61;
+  --blue:#5B78FF; --ink:#FFFFFF; --on-ink:#0B0B0B; --good:#4ADE80; --bad:#FF6B61;
+  --fld:rgba(255,255,255,.07); --th:#1D1814;
+  --sh:0 1px 0 rgba(255,255,255,.10) inset,0 18px 50px rgba(0,0,0,.45);
+  --glow-a:rgba(248,59,96,.70); --glow-b:rgba(255,106,31,.75); --glow-c:rgba(58,70,255,.85); --glow-d:rgba(230,75,200,.50);
+  --grain:.16;
+  --grid:rgba(255,255,255,.07); --axis:rgba(255,255,255,.18); --ring:#14110F; --tip:rgba(30,26,24,.97);
+  --s-fmarena:#4a63f0; --s-sortitoutsi:#e5642a; --s-fmtactichub:#14a06f; --s-fmax:#c98500; --s-metafm:#d4489f; --s-fmdelicious:#9466ff; --s-other:#8F8A80; --s-agg:#D9D3C9;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--tx);display:flex;height:100vh;overflow:hidden;font-size:14px;
+  font-feature-settings:'cv11','ss03';-webkit-font-smoothing:antialiased}
+::selection{background:var(--pink);color:#fff}
+button,input,select{font-family:inherit;font-size:inherit}
+[hidden]{display:none!important}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+.ic{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.vh{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+/* ── Canvas: soft blurred glows + grain, drifting slowly ── */
+body::before{content:'';position:fixed;inset:-25%;z-index:0;pointer-events:none;filter:blur(36px);
+  background:
+    radial-gradient(38% 34% at 50% -2%,var(--glow-a),transparent 72%),
+    radial-gradient(34% 40% at 100% 96%,var(--glow-b),transparent 72%),
+    radial-gradient(34% 38% at 0% 92%,var(--glow-c),transparent 72%),
+    radial-gradient(30% 30% at 78% 8%,var(--glow-d),transparent 72%);
+  animation:drift 26s ease-in-out infinite alternate}
+@keyframes drift{from{transform:translate3d(-2.5%,-1.5%,0) scale(1)}to{transform:translate3d(2.5%,2%,0) scale(1.08)}}
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:var(--grain);mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+:root[data-theme="dark"] body::after{mix-blend-mode:screen}
+
+/* ── Shared surface: soft translucent card ── */
+.sb,.tb,.cc,.kpi,.pill{background:var(--card);border:1px solid var(--rim);box-shadow:var(--sh);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
+.cc,.kpi{position:relative;border-radius:28px}
+
+/* ── Sidebar ── */
+.sb,.col{position:relative;z-index:1}
+.sb{flex:0 0 268px;display:flex;flex-direction:column;margin:12px 0 12px 12px;border-radius:32px;overflow:hidden;min-height:0}
+.sb-card{margin:14px 14px 4px;padding:6px 8px 10px;color:var(--hl)}
+.logo{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-weight:800;font-size:.98rem;letter-spacing:-.02em;margin-bottom:16px;color:#fff;
+  background:linear-gradient(145deg,var(--indigo) 0%,var(--magenta) 52%,var(--orange) 100%);box-shadow:0 8px 22px rgba(248,59,96,.35),inset 0 1px 0 rgba(255,255,255,.4)}
+.sb-card b{display:block;font-size:1.3rem;font-weight:700;letter-spacing:-.035em;line-height:1.15;margin-bottom:6px}
+.sb-card span{display:block;color:var(--mu);font-size:.84rem;line-height:1.5}
+.sb-card .md{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:5px 11px;border-radius:999px;background:var(--soft);color:var(--hl);font-size:.76rem;font-weight:500}
+.sb-card .md::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--orange)}
+.sb-card .md.live::before{background:#2BD36F}
+.sb-nav{padding:14px;display:flex;flex-direction:column;gap:5px}
+.sb-sec{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--mu2);padding:10px 14px 6px}
+.nv{position:relative;display:flex;align-items:center;gap:13px;width:100%;height:46px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:var(--tx);font-size:.97rem;font-weight:500;letter-spacing:-.01em;cursor:pointer;text-align:left}
+.nv .ic{width:20px;height:20px}
+.nv:hover{background:var(--soft);color:var(--hl)}
+.nv.on,.nv.on:hover{background:var(--ink);color:var(--on-ink)}
+.nb{margin-left:auto;min-width:24px;height:22px;padding:0 8px;border-radius:11px;background:rgba(18,128,63,.14);color:var(--good);font-size:.76rem;font-weight:600;display:grid;place-items:center}
+.nv.on .nb{background:rgba(255,255,255,.2);color:var(--on-ink)}
+.sb-gap{flex:1}
+.sb-foot{padding:0 28px 20px;color:var(--mu);font-size:.74rem;line-height:1.55}
+
+/* ── Top bar ── */
+.col{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;padding:12px 12px 0}
+.tb{flex:0 0 62px;display:flex;align-items:center;justify-content:space-between;gap:14px;border-radius:999px;padding:0 10px 0 24px}
+.tb-l{display:flex;align-items:center;gap:12px;min-width:0}
+.crumb{font-size:.86rem;color:var(--mu);white-space:nowrap}
+.crumb b{color:var(--hl);font-weight:600}
+.tag{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px;border-radius:999px;font-size:.74rem;font-weight:500;background:var(--soft);color:var(--tx);white-space:nowrap}
+.tag::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--orange)}
+.tag.live::before{background:#2BD36F}
+.tb-r{display:flex;align-items:center;gap:10px}
+.icb{width:42px;height:42px;border-radius:50%;border:0;background:var(--soft);color:var(--hl);display:grid;place-items:center;cursor:pointer;transition:background .2s}
+.icb:hover{background:var(--bd2)}
+.icb .moon,.icb .mo-off{display:none}
+:root[data-theme="dark"] .icb .moon{display:block}:root[data-theme="dark"] .icb .sun{display:none}
+:root[data-motion="off"] .icb .mo-on{display:none}:root[data-motion="off"] .icb .mo-off{display:block}
+
+/* ── Buttons: black pill that lights up, soft grey secondary ── */
+.b{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 20px;border-radius:999px;border:0;font-weight:600;letter-spacing:-.01em;cursor:pointer;white-space:nowrap;transition:box-shadow .35s ease,background .2s ease}
+.b-pri{background:var(--ink);color:var(--on-ink)}
+.b-pri:hover:not(:disabled){box-shadow:0 0 0 1.5px rgba(255,255,255,.25),0 0 14px 1px rgba(58,70,255,.55),0 0 22px 3px rgba(248,59,96,.55),0 0 34px 8px rgba(255,106,31,.40)}
+.b-out{background:var(--soft);color:var(--hl);height:38px;padding:0 16px;font-weight:500;border-radius:14px;box-shadow:inset 0 1px 0 var(--rim)}
+.b-out:hover:not(:disabled){background:var(--bd2)}
+.b:disabled{opacity:.5;cursor:progress}
+.b-pri:disabled{opacity:1;box-shadow:0 0 0 1.5px rgba(255,255,255,.25),0 0 14px 1px rgba(58,70,255,.55),0 0 22px 3px rgba(248,59,96,.55),0 0 34px 8px rgba(255,106,31,.40)}
+.spin .ic{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Content ── */
+.stage{flex:1 1 auto;overflow-y:auto;min-height:0;padding:30px 8px 56px;scroll-behavior:smooth}
+:root[data-motion="off"] .stage{scroll-behavior:auto}
+.main{max-width:1420px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.page-h h1{margin:0;color:var(--hl);font-size:clamp(2.3rem,4.4vw,3.9rem);font-weight:700;letter-spacing:-.05em;line-height:1.03}
+.caret{display:inline-block;width:.075em;height:.86em;margin-left:.07em;border-radius:3px;vertical-align:-.06em;
+  background:linear-gradient(180deg,var(--indigo),var(--magenta) 55%,var(--orange));animation:blink 1.05s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.page-h p{margin:12px 0 0;color:var(--mu);font-size:1.05rem;max-width:760px;line-height:1.5;letter-spacing:-.01em}
+.bnr{padding:12px 18px;border-radius:18px;background:var(--card);border:1px solid var(--rim);color:var(--tx);font-size:.88rem;box-shadow:var(--sh)}
+
+.sources{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 14px;border-radius:999px;font-size:.8rem;color:var(--mu);box-shadow:inset 0 1px 0 var(--rim)}
+.pill b{color:var(--hl);font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.st{font-weight:700}
+.st-ok{color:var(--good)}.st-error{color:var(--bad)}.st-blocked{color:var(--orange)}.st-skipped{color:var(--mu)}
+
+/* filters */
+.filters{padding:20px 22px;display:flex;flex-direction:column;gap:16px}
+.f-row{display:flex;flex-wrap:wrap;gap:12px 14px;align-items:flex-end}
+.f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.f>span{font-size:.76rem;font-weight:500;color:var(--mu)}
+.f input:not([type=checkbox]):not([type=radio]),.f select{height:40px;padding:0 13px;border-radius:14px;border:1px solid var(--bd);background:var(--fld);color:var(--hl);min-width:0;outline:none;box-shadow:inset 0 1px 0 var(--rim)}
+.f input:not([type=checkbox]):not([type=radio]):focus,.f select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,91,255,.18)}
+.f select option{background:#fff;color:#101010}
+.f input[type=number]{width:80px}
+#q{width:210px}#fTeam{width:180px}
+.seg{display:inline-flex;gap:2px;padding:4px;border-radius:999px;background:var(--soft);box-shadow:inset 0 1px 0 var(--rim)}
+.seg label{position:relative;display:inline-flex;align-items:center;height:32px;padding:0 15px;border-radius:999px;color:var(--tx);font-size:.84rem;font-weight:500;cursor:pointer;white-space:nowrap}
+.seg label:has(input:checked){background:var(--blue);color:#fff;box-shadow:0 6px 16px rgba(47,91,255,.35)}
+.seg label:has(input:focus-visible){outline:2px solid var(--blue);outline-offset:1px}
+.tgl{flex-direction:row;align-items:center;gap:10px;height:40px;cursor:pointer;font-size:.84rem;color:var(--tx)}
+.tgl input{-webkit-appearance:none;appearance:none;position:relative;flex:0 0 auto;width:42px;height:26px;margin:0;border-radius:999px;background:var(--bd2);cursor:pointer;transition:background .2s}
+.tgl input::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .45s cubic-bezier(.3,1.5,.5,1)}
+.tgl input:checked{background:var(--blue)}
+.tgl input:checked::after{transform:translateX(16px)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:999px;background:var(--ink);color:var(--on-ink);font-size:.82rem;font-weight:500;cursor:pointer;user-select:none;transition:background .2s,color .2s}
+.chip:has(input:not(:checked)){background:var(--soft);color:var(--mu)}
+.chip:has(input:focus-visible){outline:2px solid var(--blue);outline-offset:2px}
+
+/* KPI: big tight numerals with a soft grey gradient, pink gradient sphere icons */
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.kpi{padding:18px 20px 16px;min-width:0;color:var(--hl);
+  background:radial-gradient(240px circle at var(--mx,-999px) var(--my,-999px),rgba(255,255,255,.7),rgba(255,255,255,0) 70%),var(--card)}
+:root[data-theme="dark"] .kpi{background:radial-gradient(240px circle at var(--mx,-999px) var(--my,-999px),rgba(255,255,255,.10),rgba(255,255,255,0) 70%),var(--card)}
+.kpi .t{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.86rem;font-weight:500;color:var(--mu);line-height:1.3}
+.kpi .t .ic{width:32px;height:32px;padding:8px;border-radius:50%;color:#fff;stroke-width:2.1;
+  background:radial-gradient(circle at 30% 24%,#FFB3C6 0%,var(--pink) 58%,var(--magenta) 100%);box-shadow:0 6px 16px rgba(248,59,96,.32),inset 0 1px 0 rgba(255,255,255,.5)}
+.kpi .v{font-size:2.5rem;font-weight:700;letter-spacing:-.055em;line-height:1.05;margin-top:14px;font-variant-numeric:tabular-nums;
+  background:linear-gradient(180deg,var(--hl) 25%,color-mix(in srgb,var(--hl) 45%,var(--bg)));-webkit-background-clip:text;background-clip:text;color:transparent}
+.kpi .d{margin-top:8px;font-size:.76rem;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* leader tiles: the whole tile links to the tactic page */
+a.kpi{display:block;text-decoration:none}
+a.kpi:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+a.kpi::after{content:"↗";position:absolute;right:18px;bottom:14px;font-size:.9rem;font-weight:600;color:var(--blue)}
+a.kpi .d{padding-right:18px;white-space:normal}
+.kpi .u{margin-top:4px;font-size:.74rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .tn{margin-top:12px;min-height:2.6em;font-size:.88rem;font-weight:600;line-height:1.3;color:var(--hl);overflow-wrap:anywhere;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+a.kpi:hover .tn{color:var(--blue)}
+:root[data-motion="on"] .kpi{transition:transform .25s ease}
+:root[data-motion="on"] .kpi:hover{transform:translateY(-3px)}
+
+/* chart cards */
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.charts .wide{grid-column:1/-1}
+.cc{padding:22px 22px 18px;min-width:0}
+.cc-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.cc h2{margin:0;display:flex;align-items:center;gap:11px;color:var(--hl);font-size:1.12rem;font-weight:650;letter-spacing:-.03em}
+.cc h2 .i{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#fff;
+  background:radial-gradient(circle at 30% 24%,color-mix(in srgb,var(--c1,#F83B60) 38%,#fff) 0%,var(--c1,#F83B60) 58%,var(--c2,#E64BC8) 100%);box-shadow:0 6px 16px color-mix(in srgb,var(--c1,#F83B60) 40%,transparent),inset 0 1px 0 rgba(255,255,255,.5)}
+.cc h2 .i .ic{width:16px;height:16px;stroke-width:2.1}
+.hint{margin:7px 0 0;color:var(--mu);font-size:.8rem}
+.chart-box{position:relative;width:100%}
+.empty{color:var(--mu);padding:28px 0;text-align:center}
+body.loading .charts,body.loading .kpis,body.loading #sec-table{opacity:.5;transition:opacity .2s}
+
+/* table */
+.tw{border-radius:20px;background:var(--soft);border:1px solid var(--bd);overflow:clip}
+table{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;font-size:.8rem}
+th,td{padding:9px 6px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top;overflow-wrap:anywhere}
+th:first-child,td:first-child{padding-left:12px}th:last-child,td:last-child{padding-right:12px}
+th{position:sticky;top:0;z-index:1;background:var(--th);color:var(--mu);font-weight:600;font-size:.72rem;line-height:1.25;cursor:pointer;user-select:none}
+th:hover,th.sorted{color:var(--hl)}
+td{color:var(--tx)}
+tbody tr:hover td{background:var(--soft)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.tactic a{font-weight:600;letter-spacing:-.01em}
+td.tactic .by{color:var(--mu);font-size:.76rem;margin-top:2px}
+td.src .dot{margin-right:6px}td.num{overflow-wrap:normal}
+.muted{color:var(--mu)}
+.pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:14px;color:var(--mu);font-size:.84rem}
+.cnt{color:var(--mu);font-size:.84rem}
+.tier-f{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tier-f>span{font-size:.8rem;color:var(--mu)}
+.hero-l{display:inline-block;white-space:pre;transition:opacity .25s ease,filter .25s ease}
+.hero-l.off{opacity:0;filter:blur(8px)}
+
+details.cc summary{cursor:pointer;font-weight:650;letter-spacing:-.02em;font-size:1.05rem;color:var(--hl);list-style-position:inside}
+details.cc li{color:var(--tx);margin:7px 0;line-height:1.6}
+code{font-size:.8rem;background:var(--soft);padding:1px 6px;border-radius:6px}
+
+/* motion: blocks sharpen into view from a blur, like the words in the video */
+@keyframes liq-in{from{opacity:0;transform:translateY(14px) scale(.97);filter:blur(12px)}to{opacity:1;transform:none;filter:blur(0)}}
+:root[data-motion="on"] .mo-i{animation:liq-in .9s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 80ms)}
+:root[data-motion="off"] *,:root[data-motion="off"] *::before,:root[data-motion="off"] *::after{animation:none!important;transition:none!important}
+
+@media(max-width:1200px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1100px){.tw{overflow-x:auto}table{table-layout:auto;min-width:1000px}}
+@media(max-width:900px){
+  body{flex-direction:column}
+  .sb{flex:0 0 auto;flex-direction:row;align-items:center;margin:8px 8px 0;border-radius:24px;overflow-x:auto}
+  .sb-card,.sb-sec,.sb-gap,.sb-foot{display:none}
+  .sb-nav{flex-direction:row;padding:6px;gap:4px}
+  .nv{height:38px;padding:0 12px;gap:9px;font-size:.82rem;white-space:nowrap}.nv .ic{width:17px;height:17px}
+  .col{padding:8px}
+  .tb{flex:0 0 56px;border-radius:24px;padding:0 8px 0 14px}.crumb{display:none}
+  .charts{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+  #q,#fTeam{width:100%}.f{flex:1 1 140px}.kpi .v{font-size:1.8rem}
+  .b-pri span{display:none}.b-pri{padding:0 13px}.tag{display:none}
+}
+</style>
+</head>
+<body>
+<aside class="sb" aria-label="Navigation">
+  <div class="sb-card">
+    <div class="logo">FM</div>
+    <b>FM27 Tactic Lab</b>
+    <span>Football Manager 2027 tactic test results from many sources</span>
+    <span id="sbStatus" class="md">Loading…</span>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">Analysis</div>
+    <button class="nv on" type="button" data-go="sec-overview" data-ic="grid">Overview</button>
+    <button class="nv" type="button" data-go="sec-charts" data-ic="chart">Charts</button>
+    <button class="nv" type="button" data-go="sec-table" data-ic="table">Tactics table <span id="nbRows" class="nb">0</span></button>
+    <div class="sb-sec">Data</div>
+    <button class="nv" type="button" data-go="sec-notes" data-ic="info">Methods</button>
+  </nav>
+  <div class="sb-gap"></div>
+  <div class="sb-foot">Sources: FM-Arena · FMAX · metaFM · FMDelicious · Sortitoutsi · FM-Tactic-Hub · FM Scout · FMSite.net · FM Base · YouTube · fmkorea</div>
+</aside>
+
+<div class="col">
+  <header class="tb">
+    <div class="tb-l">
+      <span class="crumb">FM27 Tactic Lab / <b id="crumb">Overview</b></span>
+      <span id="updTag" class="tag">No data yet</span>
+    </div>
+    <div class="tb-r">
+      <button id="btnMotion" class="icb" type="button" title="Toggle motion" aria-label="Toggle motion"></button>
+      <button id="btnTheme" class="icb" type="button" title="Light / dark theme" aria-label="Light / dark theme"></button>
+      <button id="refresh" class="b b-pri" type="button"></button>
+    </div>
+  </header>
+
+  <div id="stage" class="stage">
+    <main class="main">
+      <section id="sec-overview" class="main" style="gap:14px">
+        <div class="page-h mo-i" style="--i:0">
+          <h1 aria-label="FM27 tactic analysis"><span id="heroText">FM27 tactic analysis</span><i class="caret" aria-hidden="true"></i></h1>
+          <p>Tests, formation, Win %, GF, GA, GD, matches, points and team, combined from the tactic testing sources</p>
+        </div>
+        <div id="banner" class="bnr" hidden></div>
+        <div id="sources" class="sources mo-i" style="--i:1" aria-label="Source status"></div>
+
+        <section class="cc filters mo-i" style="--i:2" aria-label="Filters">
+          <div class="f-row">
+            <label class="f"><span>Search tactic / author</span><input id="q" type="search" placeholder="e.g. Vanco, 4231…"></label>
+            <label class="f"><span>Formation IP</span><select id="fIp"></select></label>
+            <label class="f"><span>Formation OOP</span><select id="fOop"></select></label>
+            <label class="f"><span>Team / context</span><input id="fTeam" list="teams" placeholder="e.g. Arsenal, Mid-table"><datalist id="teams"></datalist></label>
+            <label class="f"><span>Patch</span><select id="fPatch"></select></label>
+            <label class="f"><span>Tests ≥</span><input id="fMinTests" type="number" min="0" value="0"></label>
+            <label class="f"><span>Matches ≥</span><input id="fMinMatches" type="number" min="0" value="38"></label>
+            <label class="f"><span>Win % ≥</span><input id="fMinWin" type="number" min="0" max="100" value="0"></label>
+          </div>
+          <div class="f-row">
+            <div class="f"><span>Group by</span>
+              <div class="seg" role="radiogroup" aria-label="Group by">
+                <label><input class="vh" type="radio" name="view" value="tactic" checked>Per tactic</label>
+                <label><input class="vh" type="radio" name="view" value="raw">Each test / context</label>
+              </div></div>
+            <div class="f"><span>GF · GA · GD · Points</span>
+              <div class="seg" role="radiogroup" aria-label="Unit">
+                <label><input class="vh" type="radio" name="unit" value="38" checked>Per 38</label>
+                <label><input class="vh" type="radio" name="unit" value="game">Per game</label>
+                <label><input class="vh" type="radio" name="unit" value="total">Total</label>
+              </div></div>
+            <label class="f tgl"><input id="fStats" type="checkbox" checked><span>Only rows with test data</span></label>
+            <button id="reset" class="b b-out" type="button">Reset</button>
+          </div>
+          <div class="f"><span>Sources</span><div id="fSources" class="chips"></div></div>
+        </section>
+
+        <div id="kpis" class="kpis mo-i" style="--i:3"></div>
+      </section>
+
+      <section id="sec-charts" class="charts">
+        <div class="cc mo-i" style="--i:4">
+          <div class="cc-h">
+            <div><h2><span class="i" data-ic="trophy" style="--c1:#FFC400;--c2:#F83B60"></span><span id="t-cPts">Top 15 by points (per 38 games)</span></h2><p class="hint">Follows the current filters · each source tests in a different environment · click a bar to open the tactic</p></div>
+            <div class="seg" role="radiogroup" aria-label="Unit for this chart"><label><input class="vh" type="radio" name="cu-cPts" value="game">Per game</label><label><input class="vh" type="radio" name="cu-cPts" value="38" checked>Per 38</label><label><input class="vh" type="radio" name="cu-cPts" value="total">Total</label></div>
+          </div>
+          <div id="boxPts" class="chart-box"><canvas id="cPts" aria-label="Top 15 by points per 38 games"></canvas></div>
+        </div>
+        <div class="cc mo-i" style="--i:5">
+          <div class="cc-h">
+            <div><h2><span class="i" data-ic="ball" style="--c1:#FF8A00;--c2:#B14BFF"></span><span id="t-cGF">Top 15 most goals scored (GF, per 38 games)</span></h2><p class="hint">Only rows with published GF/GA (not FM-Tactic-Hub or the FMDelicious archive) · click a bar to open the tactic</p></div>
+            <div class="seg" role="radiogroup" aria-label="Unit for this chart"><label><input class="vh" type="radio" name="cu-cGF" value="game">Per game</label><label><input class="vh" type="radio" name="cu-cGF" value="38" checked>Per 38</label><label><input class="vh" type="radio" name="cu-cGF" value="total">Total</label></div>
+          </div>
+          <div id="boxGF" class="chart-box"><canvas id="cGF" aria-label="Top 15 most goals scored (GF per 38 games)"></canvas></div>
+        </div>
+        <div class="cc mo-i" style="--i:6">
+          <div class="cc-h">
+            <div><h2><span class="i" data-ic="shield" style="--c1:#00E0C6;--c2:#3A46FF"></span><span id="t-cGA">Top 15 fewest goals conceded (GA, per 38 games)</span></h2><p class="hint">Shorter bar = better defence · only sources that publish GF/GA · click a bar to open the tactic</p></div>
+            <div class="seg" role="radiogroup" aria-label="Unit for this chart"><label><input class="vh" type="radio" name="cu-cGA" value="game">Per game</label><label><input class="vh" type="radio" name="cu-cGA" value="38" checked>Per 38</label><label><input class="vh" type="radio" name="cu-cGA" value="total">Total</label></div>
+          </div>
+          <div id="boxGA" class="chart-box"><canvas id="cGA" aria-label="Top 15 fewest goals conceded (GA per 38 games)"></canvas></div>
+        </div>
+        <div class="cc mo-i" style="--i:7">
+          <div class="cc-h">
+            <div><h2><span class="i" data-ic="chart" style="--c1:#B6E800;--c2:#00A8E8"></span><span id="t-cGD">Top 15 goal difference (GF − GA, per 38 games)</span></h2><p class="hint">Tooltip also shows the GF ÷ GA ratio · only sources that publish GF/GA · click a bar to open the tactic</p></div>
+            <div class="seg" role="radiogroup" aria-label="Unit for this chart"><label><input class="vh" type="radio" name="cu-cGD" value="game">Per game</label><label><input class="vh" type="radio" name="cu-cGD" value="38" checked>Per 38</label><label><input class="vh" type="radio" name="cu-cGD" value="total">Total</label></div>
+          </div>
+          <div id="boxGD" class="chart-box"><canvas id="cGD" aria-label="Top 15 goal difference (GF − GA per 38 games)"></canvas></div>
+        </div>
+        <div class="cc wide mo-i" style="--i:8">
+          <div class="cc-h">
+            <div><h2><span class="i" data-ic="grid" style="--c1:#FF3B30;--c2:#9B30FF"></span><span id="t-cForm">Formation IP: average points (per 38 games)</span></h2><p class="hint">Average of tactics sharing a formation (n = rows, n ≥ 2 preferred) · top 12 formations · click a bar to filter the dashboard to that formation</p></div>
+            <div class="seg" role="radiogroup" aria-label="Unit for this chart"><label><input class="vh" type="radio" name="cu-cForm" value="game">Per game</label><label><input class="vh" type="radio" name="cu-cForm" value="38" checked>Per 38</label><label><input class="vh" type="radio" name="cu-cForm" value="total">Total</label></div>
+          </div>
+          <div id="boxForm" class="chart-box"><canvas id="cForm" aria-label="Formation IP: average points per 38 games"></canvas></div>
+        </div>
+      </section>
+
+      <section id="sec-table" class="cc mo-i" style="--i:7">
+        <div class="cc-h"><h2><span class="i" data-ic="table"></span>Tactics table</h2>
+          <div class="tier-f"><span>Team tier</span>
+            <div class="seg" role="radiogroup" aria-label="Team tier">
+              <label><input class="vh" type="radio" name="tier" value="" checked>All</label>
+              <label><input class="vh" type="radio" name="tier" value="Elite">Elite</label>
+              <label><input class="vh" type="radio" name="tier" value="Top">Top</label>
+              <label><input class="vh" type="radio" name="tier" value="Sub-top">Sub-top</label>
+              <label><input class="vh" type="radio" name="tier" value="Underdog">Underdog</label>
+            </div>
+            <span id="count" class="cnt"></span></div></div>
+        <p class="hint" style="margin:-4px 0 12px">Tiers apply to the table only. Our own grouping of the clubs testers used (Sortitoutsi), plus FM-Tactic-Hub's tiers and the top / mid / bottom clubs of the FMDelicious archive; standard-test sources (FM-Arena, FMAX, metaFM, FMDelicious ranking) have no team tier and show under All only.</p>
+        <div class="tw"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+        <div class="pager"><button id="prev" class="b b-out" type="button">‹ Prev</button><span id="pageInfo"></span><button id="next" class="b b-out" type="button">Next ›</button></div>
+      </section>
+
+      <details id="sec-notes" class="cc">
+        <summary>Methods and data limits</summary>
+        <ul>
+          <li><b>FM-Arena</b>: standard test table per patch. Tests = matches ÷ 450 (each test is 450 matches). Points, GF, GA and GD are converted from the published per-38 figures (rounded). FM-Arena does not publish W/D/L, so there is no Win %.</li>
+          <li><b>FMAX Tactic Lab</b> (getfmax.com): public JSON API, every match-engine version it lists. W/D/L, GF and GA are real totals from standardised tests; points are recomputed from W/D/L, so for some tactics they differ slightly from FMAX's own ranking score. The number of tests is not published. Formation comes from each tactic's detail page (read once, then reused).</li>
+          <li><b>metaFM</b> (metafm.net): current leaderboard plus the leaderboards of older patches (27.0.1). Each tactic plays up to 8,008 matches against the same AI game plans with identical players. W/D/L is derived from Win % and PPG; GF/GA are converted from the published per-38 figures. The number of tests is not published.</li>
+          <li><b>FMDelicious</b> (fmdelicious.com): official 27.1.0 ranking, one protocol, 6,048 matches per tactic. Exact W-D-L comes from each tactic's page (read once, then reused while the match count is unchanged); GF/GA are converted from the per-38 figures. Formations are the site's own labels (marked *). The FM27 archive (beta) adds one 38-match league season at Spurs (top), Bournemouth (mid) and Leeds (bottom), points only; sacked seasons and built-in presets without results are left out.</li>
+          <li><b>Sortitoutsi</b>: each row is one user-submitted test (team, W/D/L, real GF/GA). Small samples (a few matches) are noisy, so rows are filtered to matches ≥ 38 by default.</li>
+          <li><b>FM-Tactic-Hub</b> (fm-helper.de): 380 matches for each team tier (Top teams / Mid-table / Relegation). W/D/L is derived from Win % and points; GF/GA and the number of tests are not published.</li>
+          <li><b>FM Scout, FMSite.net, FM Base, YouTube</b>: catalogues only (views, downloads). Results sit in images or free text, so there is no test data; formations marked (*) are guessed from the title. YouTube needs an API key, or channel IDs for the RSS fallback, in <code>config.json</code>.</li>
+          <li><b>fmkorea</b>: blocks automated access with a Cloudflare captcha, so enter it by hand in <code>data/manual.csv</code> (column <code>source</code> = fmkorea). Facebook has no usable API either; use the same file for tactics seen there. The FM27 Steam Workshop (tactic subscriber counts) could not be reached from this network: the Steam domains do not resolve.</li>
+          <li><b>Leader tiles</b> show the top row for each metric under the current filters (per 38 games, so small samples can lead: raise “Matches ≥” for steadier leaders). “Most downloads” also counts catalogue rows without test data; each site counts its own downloads, never summed across sites.</li>
+          <li><b>Team tiers</b> (Elite / Top / Sub-top / Underdog) are our own rough grouping of the real clubs testers picked on Sortitoutsi, by real-world strength, not FM's reputation values. FM-Tactic-Hub's Top teams / Mid-table / Relegation map to Top / Sub-top / Underdog. Standard-test sources have no tier. Clubs not in the list get no tier; a manual row can set one in a <code>tier</code> column.</li>
+          <li><b>Formations</b> are recomputed from player positions using FM's naming convention: wing-backs count as defenders (3 centre-backs + 2 wing-backs = “5-…”). Hover a formation cell to see the positions.</li>
+          <li><b>Units on the charts</b>: each chart has its own Per game / Per 38 / Total buttons (the table keeps the global one). Per game = total ÷ matches; Per 38 = per game × 38; Total = the raw sum. Total favours tactics with more matches, so use Per game or Per 38 to compare tactics with different sample sizes.</li>
+          <li>Comparing sources is for reference only because the test environments differ. Filter to one source when ranking. Chart colours are decorative (rank order, not source): the source is named in each bar label and tooltip.</li>
+        </ul>
+      </details>
+    </main>
+  </div>
+</div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const root = document.documentElement;
+const css = v => getComputedStyle(root).getPropertyValue(v).trim();
+const motion = () => root.getAttribute('data-motion') === 'on';
+const SRC_VAR = { fmarena: '--s-fmarena', sortitoutsi: '--s-sortitoutsi', fmtactichub: '--s-fmtactichub', fmax: '--s-fmax', metafm: '--s-metafm', fmdelicious: '--s-fmdelicious' };
+const srcColor = s => css(SRC_VAR[s] || '--s-other');
+const PAGE_SIZE = 50;
+const DEFAULTS = { minTests: 0, minMatches: 38, minWin: 0, view: 'tactic', unit: '38' };
+const FONT = "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif";
+
+/* line icons (static internal strings) */
+const ICON = {
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  chart: '<path d="M3 3v18h18"/><path d="M7 15v-3M12 15V8M17 15v-6"/>',
+  table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  refresh: '<path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  waves: '<path d="M3 9c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M3 15c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/>',
+  still: '<path d="M3 9h18M3 15h18"/>',
+  ball: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5l4 2.9-1.5 4.6h-5L8 10.4z"/>',
+  download: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 19h14"/>',
+  trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+};
+const svg = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
+function iconEl(n) { const t = document.createElement('template'); t.innerHTML = svg(n); return t.content.firstChild; }
+
+let DATA = { sources: {}, records: [] };
+const unchecked = new Set();
+const state = { sortKey: 'points', sortDir: -1, page: 0 };
+const charts = {};
+let chartsW = 0;  // chart width the bar labels were fitted to
+
+const nf = d => new Intl.NumberFormat('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const NF = [nf(0), nf(1), nf(2)];
+const fmt = (v, d = 0) => v == null || !isFinite(v) ? '—' : NF[d].format(v);
+const signed = (v, d = 0) => v == null || !isFinite(v) ? '—' : (v > 0 ? '+' : '') + NF[d].format(v);
+const uniq = a => [...new Set(a.filter(Boolean))];
+const trunc = (s, n) => s && s.length > n ? s.slice(0, n - 1) + '…' : (s || '');
+const patchKey = p => (p || '').match(/\d+\.\d+/)?.[0] || null;
+const srcLabel = s => DATA.sources[s]?.label || s;
+const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : null;
+const radio = n => $(`input[name="${n}"]:checked`).value;
+
+function el(tag, props = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v == null) continue;
+    if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v;
+    else if (k === 'style') e.style.cssText = v; else e.setAttribute(k, v);
+  }
+  e.append(...kids.filter(k => k != null));
+  return e;
+}
+
+/* ---------- shell: icons, theme, motion, navigation ---------- */
+$$('[data-ic]').forEach(e => e.prepend(iconEl(e.dataset.ic)));
+$('#btnTheme').innerHTML = svg('sun', 'sun') + svg('moon', 'moon');
+$('#btnMotion').innerHTML = svg('waves', 'mo-on') + svg('still', 'mo-off');
+const setRefreshBtn = busy => { const b = $('#refresh'); b.disabled = busy; b.classList.toggle('spin', busy); b.innerHTML = svg('refresh') + `<span>${busy ? 'Updating…' : 'Update'}</span>`; };
+setRefreshBtn(false);
+function toggleAttr(attr, a, b, key) {
+  const v = root.getAttribute(attr) === a ? b : a;
+  root.setAttribute(attr, v);
+  try { localStorage.setItem(key, v); } catch (e) {}
+}
+$('#btnTheme').addEventListener('click', () => toggleAttr('data-theme', 'dark', 'light', 'fm27_theme'));
+$('#btnMotion').addEventListener('click', () => toggleAttr('data-motion', 'on', 'off', 'fm27_motion'));
+new MutationObserver(() => { renderStatus(); buildFilterOptions(); render(); }).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+
+const stage = $('#stage');
+const NAVS = () => $$('.sb-nav:not(.liq-ink) > .nv');  // skip the white label copy of the liquid effect
+let navLock = 0;  // after a menu click, keep the clicked item while the page scrolls
+function setNav(cur) {
+  NAVS().forEach(b => b.classList.toggle('on', b === cur));
+  $('#crumb').textContent = [...cur.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim();
+}
+NAVS().forEach(b => b.addEventListener('click', () => {
+  const t = $('#' + b.dataset.go);
+  if (t.tagName === 'DETAILS') t.open = true;
+  navLock = Date.now() + 1000; setNav(b);
+  const top = stage.scrollTop + t.getBoundingClientRect().top - stage.getBoundingClientRect().top - 12;
+  stage.scrollTo({ top, behavior: motion() ? 'smooth' : 'auto' });
+}));
+function spy() {
+  if (Date.now() < navLock) return;
+  const navs = NAVS(); let cur = navs[0];
+  for (const b of navs) if ($('#' + b.dataset.go).getBoundingClientRect().top - stage.getBoundingClientRect().top < 140) cur = b;
+  setNav(cur);
+}
+stage.addEventListener('scroll', () => requestAnimationFrame(spy), { passive: true });
+
+/* ---------- data ---------- */
+async function load() {
+  try {
+    const r = await fetch('/api/data');
+    setData(await r.json());
+  } catch (e) {
+    showBanner('Cannot reach the server. Open a terminal in the project folder, run: python app.py, then visit http://127.0.0.1:8765');
+  }
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function startUpdate(token) {
+  return fetch('/api/refresh', { method: 'POST', headers: token ? { 'X-Refresh-Token': token } : {} });
+}
+async function refresh() {
+  setRefreshBtn(true);
+  document.body.classList.add('loading');
+  showBanner('Calling the sources. Usually about 20 seconds; after a restart the first run can take up to 4 minutes…');
+  try {
+    let token = null;
+    try { token = localStorage.getItem('fm27_refresh_token'); } catch (e) {}
+    let r = await startUpdate(token);
+    if (r.status === 401) {  // this server asks for the token set in REFRESH_TOKEN
+      token = prompt('Refresh token for this server:');
+      if (!token) throw new Error('no refresh token given');
+      r = await startUpdate(token);
+      if (r.status === 401) { try { localStorage.removeItem('fm27_refresh_token'); } catch (e) {} throw new Error('wrong refresh token'); }
+      try { localStorage.setItem('fm27_refresh_token', token); } catch (e) {}
+    }
+    const j = await r.json();
+    if (r.status !== 202 && r.status !== 409) throw new Error(j.error || r.status);
+    // the server updates in the background: wait until it reports that it has finished
+    for (;;) {
+      await sleep(3000);
+      const s = await (await fetch('/api/refresh-status')).json();
+      if (!s.running) { if (s.error) throw new Error(s.error); break; }
+    }
+    const d = await (await fetch('/api/data')).json();
+    setData(d);
+    const bad = Object.values(d.sources).filter(s => s.status === 'error');
+    showBanner(bad.length ? `Update finished. ${bad.length} source(s) failed; their previous data is being used.` : '');
+  } catch (e) {
+    showBanner('Update failed: ' + e.message);
+  } finally {
+    setRefreshBtn(false);
+    document.body.classList.remove('loading');
+  }
+}
+function showBanner(msg) { const b = $('#banner'); b.textContent = msg; b.hidden = !msg; }
+function setData(d) {
+  DATA = d;
+  const tag = $('#updTag');
+  tag.textContent = d.updated_at ? 'Updated ' + new Date(d.updated_at).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'No data yet';
+  tag.classList.toggle('live', !!d.updated_at);
+  if (!d.records.length) showBanner('No data yet. Press “Update” to fetch from the sources.');
+  renderStatus();
+  buildFilterOptions();
+  render();
+}
+
+/* ---------- source status ---------- */
+const STATUS = {
+  ok: ['✓', 'st-ok', s => `${fmt(s.count)} records${s.seconds != null ? ' · ' + fmt(s.seconds, 1) + 's' : ''}`],
+  error: ['!', 'st-error', s => `Error, using old data (${fmt(s.count)})`],
+  blocked: ['⊘', 'st-blocked', () => 'Blocked, enter by hand'],
+  skipped: ['○', 'st-skipped', () => 'Not configured'],
+};
+function renderStatus() {
+  const entries = Object.entries(DATA.sources);
+  $('#sources').replaceChildren(...entries.map(([key, s]) => {
+    const [icon, cls, txt] = STATUS[s.status] || STATUS.error;
+    return el('span', { class: 'pill', title: s.message || '' },
+      el('span', { class: 'dot', style: `background:${srcColor(key)}` }), el('b', { text: s.label }),
+      el('span', { class: 'st ' + cls, text: icon, 'aria-hidden': 'true' }), el('span', { text: txt(s) }));
+  }));
+  const auto = entries.filter(([k]) => k !== 'manual');
+  const ok = auto.filter(([, s]) => s.status === 'ok').length;
+  const sb = $('#sbStatus');
+  sb.textContent = auto.length ? `${ok}/${auto.length} automatic sources working` : 'Not updated yet';
+  sb.classList.toggle('live', auto.length > 0 && auto.every(([, s]) => s.status !== 'error'));
+}
+
+/* ---------- filters ---------- */
+const counted = vals => {
+  const m = new Map(); vals.filter(Boolean).forEach(v => m.set(v, (m.get(v) || 0) + 1));
+  return [...m.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(b[0]));
+};
+function fillSelect(sel, items) {
+  const cur = sel.value;
+  sel.replaceChildren(el('option', { value: '', text: 'All' }), ...items.map(([v, n]) => el('option', { value: v, text: `${v} (${n})` })));
+  sel.value = items.some(([v]) => v === cur) ? cur : '';
+}
+function buildFilterOptions() {
+  const recs = DATA.records;
+  $('#fSources').replaceChildren(...counted(recs.map(r => r.source)).map(([s, n]) => {
+    const cb = el('input', { type: 'checkbox', value: s, class: 'vh' });
+    cb.checked = !unchecked.has(s);
+    cb.addEventListener('change', () => { cb.checked ? unchecked.delete(s) : unchecked.add(s); state.page = 0; render(); });
+    return el('label', { class: 'chip' }, cb, el('span', { class: 'dot', style: `background:${srcColor(s)}` }), el('span', { text: `${srcLabel(s)} (${n})` }));
+  }));
+  fillSelect($('#fIp'), counted(recs.map(r => r.formation_ip)));
+  fillSelect($('#fOop'), counted(recs.map(r => r.formation_oop)));
+  fillSelect($('#fPatch'), counted(recs.map(r => patchKey(r.patch))).sort((a, b) => b[0].localeCompare(a[0])));
+  $('#teams').replaceChildren(...counted(recs.map(r => r.team)).map(([t]) => el('option', { value: t })));
+}
+function readFilters() {
+  return {
+    q: $('#q').value.trim().toLowerCase(),
+    sources: new Set($$('#fSources input:checked').map(i => i.value)),
+    ip: $('#fIp').value, oop: $('#fOop').value, patch: $('#fPatch').value,
+    team: $('#fTeam').value.trim().toLowerCase(),
+    minTests: +$('#fMinTests').value || 0, minMatches: +$('#fMinMatches').value || 0, minWin: +$('#fMinWin').value || 0,
+    view: radio('view'), unit: radio('unit'), stats: $('#fStats').checked, tier: radio('tier'),
+  };
+}
+function resetFilters() {
+  for (const id of ['#q', '#fIp', '#fOop', '#fTeam', '#fPatch']) $(id).value = '';
+  $('#fMinTests').value = DEFAULTS.minTests; $('#fMinMatches').value = DEFAULTS.minMatches; $('#fMinWin').value = DEFAULTS.minWin;
+  $(`input[name="view"][value="${DEFAULTS.view}"]`).checked = true;
+  $(`input[name="unit"][value="${DEFAULTS.unit}"]`).checked = true;
+  $('#fStats').checked = true;
+  $('input[name="tier"][value=""]').checked = true;
+  $$('input[name^="cu-"][value="38"]').forEach(i => i.checked = true);
+  unchecked.clear(); $$('#fSources input').forEach(i => i.checked = true);
+  state.sortKey = 'points'; state.sortDir = -1; state.page = 0;
+  document.dispatchEvent(new Event('change'));  // tell the liquid selector to move back to the default choice
+  render();
+}
+
+/* ---------- calculations ---------- */
+function group(recs) {
+  const m = new Map();
+  for (const r of recs) { if (!m.has(r.key)) m.set(r.key, []); m.get(r.key).push(r); }
+  return [...m.values()].map(it => {
+    const sum = k => it.every(x => x[k] != null) ? it.reduce((a, x) => a + x[k], 0) : null;
+    return {
+      ...it[0], n: it.length,
+      tests: it.some(x => x.tests != null) ? it.reduce((a, x) => a + (x.tests || 0), 0) : null,
+      matches: sum('matches'), w: sum('w'), d: sum('d'), l: sum('l'),
+      gf: sum('gf'), ga: sum('ga'), gd: sum('gd'), points: sum('points'),
+      teams: uniq(it.map(x => x.team)), tiers: uniq(it.map(x => x.tier)), patches: uniq(it.map(x => x.patch)), testers: uniq(it.map(x => x.tester)),
+    };
+  });
+}
+function derive(r) {
+  r.winPct = r.w != null && r.matches ? r.w / r.matches * 100 : null;
+  r.ppg = r.points != null && r.matches ? r.points / r.matches : null;
+  r.pts38 = r.ppg != null ? r.ppg * 38 : null;
+  const k = r.gf != null && r.ga != null && r.matches ? 38 / r.matches : null;  // per 38 games, only where both GF and GA exist
+  r.gf38 = k ? r.gf * k : null; r.ga38 = k ? r.ga * k : null; r.gd38 = k ? r.gf38 - r.ga38 : null;
+  return r;
+}
+const per = (r, k, unit) => r[k] == null ? null : unit === 'total' ? r[k] : r.matches ? r[k] / r.matches * (unit === '38' ? 38 : 1) : null;
+const unitDigits = unit => unit === 'total' ? 0 : unit === '38' ? 1 : 2;
+
+function computeRows(f) {
+  const recs = DATA.records.filter(r =>
+    f.sources.has(r.source) &&
+    (!f.q || `${r.tactic} ${r.author || ''} ${r.tester || ''}`.toLowerCase().includes(f.q)) &&
+    (!f.ip || r.formation_ip === f.ip) && (!f.oop || r.formation_oop === f.oop) &&
+    (!f.team || (r.team || '').toLowerCase().includes(f.team)) && (!f.tier || r.tier === f.tier) &&
+    (!f.patch || patchKey(r.patch) === f.patch));
+  const rows = (f.view === 'tactic' ? group(recs)
+    : recs.map(r => ({ ...r, n: 1, teams: uniq([r.team]), tiers: uniq([r.tier]), patches: uniq([r.patch]), testers: uniq([r.tester]) }))).map(derive);
+  // Test / match / Win % thresholds apply only to rows with data; catalogue rows are decided by the "Only rows with test data" switch
+  return rows.filter(r => r.matches
+    ? (r.tests ?? 0) >= f.minTests && r.matches >= f.minMatches && (f.minWin <= 0 || (r.winPct ?? -1) >= f.minWin)
+    : !f.stats);
+}
+
+/* ---------- table ---------- */
+const COLS = [
+  { k: 'tactic', t: 'Tactic', v: r => (r.tactic || '').toLowerCase() },
+  { k: 'source', t: 'Source', v: r => srcLabel(r.source) },
+  { k: 'formation', t: 'Formation IP / OOP', v: r => r.formation_ip },
+  { k: 'teams', t: 'Team / context', v: r => r.teams.join(', ').toLowerCase() },
+  { k: 'tier', t: 'Tier', v: r => r.tiers.join(', ') },
+  { k: 'patch', t: 'Patch', v: r => r.patches.join(', ') },
+  { k: 'tests', t: 'Tests', num: 1, v: r => r.tests },
+  { k: 'matches', t: 'Matches', num: 1, v: r => r.matches },
+  { k: 'wdl', t: 'W-D-L', num: 1, v: r => r.w },
+  { k: 'winPct', t: 'Win %', num: 1, v: r => r.winPct },
+  { k: 'gf', t: 'GF', num: 1, unit: 1 }, { k: 'ga', t: 'GA', num: 1, unit: 1 },
+  { k: 'gd', t: 'GD', num: 1, unit: 1 }, { k: 'points', t: 'Points', num: 1, unit: 1 },
+  { k: 'ppg', t: 'PPG', num: 1, v: r => r.ppg },
+  { k: 'dl', t: 'Dl · Views', num: 1, v: r => r.downloads ?? r.views },
+];
+const COL_W = { tactic: 12, source: 7, formation: 8, teams: 9, tier: 7.5, patch: 5, tests: 4, matches: 5.5, wdl: 9, winPct: 5, gf: 4.5, ga: 4.5, gd: 5, points: 5, ppg: 3.5, dl: 6 };
+const UNIT_SUFFIX = { '38': ' /38', game: ' /game', total: '' };
+function sortRows(rows, unit) {
+  const col = COLS.find(c => c.k === state.sortKey) || COLS.find(c => c.k === 'points');
+  const val = col.unit ? r => per(r, col.k, unit) : col.v;
+  return rows.sort((a, b) => {
+    const x = val(a), y = val(b);
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (x < y ? -1 : x > y ? 1 : 0) * state.sortDir;
+  });
+}
+function renderTable(rows, f) {
+  $('#tbl thead').replaceChildren(el('tr', {}, ...COLS.map(c => {
+    const th = el('th', { class: (c.num ? 'num ' : '') + (state.sortKey === c.k ? 'sorted' : ''), scope: 'col', style: `width:${COL_W[c.k]}%`,
+      text: c.t + (c.unit ? UNIT_SUFFIX[f.unit] : '') + (state.sortKey === c.k ? (state.sortDir < 0 ? ' ↓' : ' ↑') : '') });
+    th.addEventListener('click', () => {
+      state.sortDir = state.sortKey === c.k ? -state.sortDir : (c.num ? -1 : 1);
+      state.sortKey = c.k; state.page = 0; render();
+    });
+    return th;
+  })));
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  state.page = Math.min(state.page, pages - 1);
+  const slice = rows.slice(state.page * PAGE_SIZE, (state.page + 1) * PAGE_SIZE);
+  const dg = unitDigits(f.unit);
+  const tbody = $('#tbl tbody');
+  tbody.replaceChildren(...slice.map(r => {
+    const url = safeUrl(r.url);
+    const who = [r.author && 'by ' + r.author, r.testers?.length && r.testers.join(', ') !== r.author ? 'tested by ' + trunc(r.testers.join(', '), 40) : null].filter(Boolean).join(' · ');
+    const posTip = [r.positions_ip?.length && 'IP: ' + r.positions_ip.join(', '), r.positions_oop?.length && 'OOP: ' + r.positions_oop.join(', '),
+      r.formation_guessed && 'Formation guessed from the title / declared by the author'].filter(Boolean).join('\n');
+    const teams = r.teams.length > 3 ? r.teams.slice(0, 3).join(', ') + ` +${r.teams.length - 3}` : r.teams.join(', ');
+    return el('tr', {},
+      el('td', { class: 'tactic', title: r.note || null },
+        url ? el('a', { href: url, target: '_blank', rel: 'noopener', text: r.tactic }) : el('span', { text: r.tactic }),
+        who ? el('div', { class: 'by', text: who }) : null),
+      el('td', { class: 'src' }, el('span', { class: 'dot', style: `background:${srcColor(r.source)}` }), short(r.source)),
+      el('td', { title: posTip || null, text: `${r.formation_ip || '—'} / ${r.formation_oop || '—'}${r.formation_guessed ? ' *' : ''}` }),
+      el('td', { class: 'teams', title: r.teams.join(', ') || null, text: teams || '—' }),
+      el('td', { class: 'nowrap', text: r.tiers.join(', ') || '—' }),
+      el('td', { class: 'muted', text: r.patches.join(', ') || '—' }),
+      el('td', { class: 'num', text: fmt(r.tests) }),
+      el('td', { class: 'num', text: fmt(r.matches) }),
+      el('td', { class: 'num', text: r.w != null ? `${fmt(r.w)}-​${fmt(r.d)}-​${fmt(r.l)}` : '—' }),
+      el('td', { class: 'num', text: r.winPct != null ? fmt(r.winPct, 1) + '%' : '—' }),
+      el('td', { class: 'num', text: fmt(per(r, 'gf', f.unit), dg) }),
+      el('td', { class: 'num', text: fmt(per(r, 'ga', f.unit), dg) }),
+      el('td', { class: 'num', text: signed(per(r, 'gd', f.unit), dg) }),
+      el('td', { class: 'num', text: fmt(per(r, 'points', f.unit), dg) }),
+      el('td', { class: 'num', text: fmt(r.ppg, 2) }),
+      el('td', { class: 'num muted', text: r.downloads != null || r.views != null ? `${fmt(r.downloads)} · ${fmt(r.views)}` : '—' }));
+  }));
+  if (!slice.length) tbody.append(el('tr', {}, el('td', { colspan: COLS.length, class: 'empty', text: 'No rows match the filters.' })));
+  $('#count').textContent = `${fmt(rows.length)} rows`;
+  $('#nbRows').textContent = fmt(rows.length);
+  $('#pageInfo').textContent = `Trang ${state.page + 1}/${pages}`;
+  $('#prev').disabled = state.page === 0; $('#next').disabled = state.page >= pages - 1;
+}
+
+/* ---------- KPI: the leading tactic for each metric; the whole tile links to its page ---------- */
+const LEADERS = [
+  { ic: 'chart', t: 'Best goal difference', k: 'gd38', dir: 1, v: x => signed(x, 1), u: 'GF − GA per 38 games' },
+  { ic: 'trophy', t: 'Most points', k: 'pts38', dir: 1, v: x => fmt(x, 1), u: 'points per 38 games' },
+  { ic: 'ball', t: 'Most goals scored', k: 'gf38', dir: 1, v: x => fmt(x, 1), u: 'scored per 38 games' },
+  { ic: 'shield', t: 'Fewest goals conceded', k: 'ga38', dir: -1, v: x => fmt(x, 1), u: 'conceded per 38 games' },
+  { ic: 'download', t: 'Most downloads', k: 'downloads', dir: 1, v: x => fmt(x), u: 'downloads on its own site', all: true },
+];
+function renderKpis(rows, allRows) {
+  $('#kpis').replaceChildren(...LEADERS.map(m => {
+    const best = (m.all ? allRows : rows).filter(r => r[m.k] != null).sort((a, b) => m.dir * (b[m.k] - a[m.k]))[0];
+    const url = best && safeUrl(best.url);
+    const meta = best ? `${short(best.source)}${best.matches ? ` · ${fmt(best.matches)} matches` : ''}` : '';
+    return el(url ? 'a' : 'div', { class: 'kpi', href: url, target: url && '_blank', rel: url && 'noopener',
+      title: best ? `${best.tactic} · ${srcLabel(best.source)}` : null },
+      el('div', { class: 't' }, el('span', { text: m.t }), iconEl(m.ic)),
+      el('div', { class: 'v', text: best ? m.v(best[m.k]) : '—' }), el('div', { class: 'u', text: m.u }),
+      el('div', { class: 'tn', text: best ? best.tactic : 'No data for these filters' }), el('div', { class: 'd', text: meta }));
+  }));
+}
+
+/* ---------- charts ---------- */
+/* colour ramps: each bar takes the next colour along a vivid ramp (decorative; the source is named in the label) */
+const RAINBOW = ['#FF3B30', '#FF8A00', '#F7B500', '#22B455', '#00A8E8', '#3A46FF', '#9B30FF'];
+const PAL = {
+  points: ['#FFC400', '#FF6A1F', '#F83B60'],
+  scored: ['#FF8A00', '#FF2E93', '#B14BFF'],
+  conceded: ['#00E0C6', '#00A8FF', '#3A46FF'],
+  diff: ['#B6E800', '#00C26E', '#00A8E8'],
+  rainbow: RAINBOW,
+};
+function ramp(stops, t) {
+  const x = Math.min(1, Math.max(0, t)) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), k = x - i;
+  const a = stops[i], b = stops[i + 1], c = n => parseInt(a.slice(n, n + 2), 16) * (1 - k) + parseInt(b.slice(n, n + 2), 16) * k;
+  return `rgb(${Math.round(c(1))},${Math.round(c(3))},${Math.round(c(5))})`;
+}
+const SRC_SHORT = { fmarena: 'FM-Arena', sortitoutsi: 'Sortitoutsi', fmtactichub: 'Hub', fmax: 'FMAX', metafm: 'metaFM', fmdelicious: 'FMDelicious', fmsite: 'FMSite' };
+const short = s => SRC_SHORT[s] || srcLabel(s);
+
+const tipLabels = {
+  id: 'tipLabels',
+  afterDatasetsDraw(chart, _, opts) {
+    if (!opts.enabled) return;
+    const { ctx } = chart;
+    ctx.save();
+    ctx.font = `600 12px ${FONT}`;
+    ctx.fillStyle = css('--tx'); ctx.textBaseline = 'middle';
+    chart.getDatasetMeta(0).data.forEach((bar, i) => ctx.fillText(opts.format(chart.data.datasets[0].data[i], i), Math.max(bar.x, chart.scales.x.getPixelForValue(0)) + 7, bar.y));
+    ctx.restore();
+  },
+};
+function commonOpts() {
+  return {
+    responsive: true, maintainAspectRatio: false, animation: motion() ? { duration: 700, easing: 'easeOutQuart' } : false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: css('--tip'), titleColor: css('--hl'), bodyColor: css('--tx'),
+        borderColor: css('--axis'), borderWidth: 1, padding: 12, cornerRadius: 14, displayColors: false,
+        titleFont: { weight: '600', family: FONT }, bodyFont: { size: 12, family: FONT } },
+    },
+  };
+}
+const axis = title => ({ grid: { color: css('--grid') }, border: { color: css('--axis') }, ticks: { color: css('--mu') },
+  title: title ? { display: true, text: title, color: css('--mu') } : undefined });
+const catAxis = () => ({ grid: { display: false }, border: { color: css('--axis') }, ticks: { color: css('--tx') } });
+function draw(id, config) { charts[id]?.destroy(); charts[id] = new Chart($('#' + id), config); }
+function noData(boxId, canvasId, empty) {
+  const box = $('#' + boxId); box.querySelector('.empty')?.remove();
+  $('#' + canvasId).style.display = empty ? 'none' : '';
+  if (empty) { charts[canvasId]?.destroy(); delete charts[canvasId]; box.append(el('div', { class: 'empty', text: 'No data for these filters.' })); }
+  return empty;
+}
+const barStyle = { borderRadius: 999, borderSkipped: 'start', maxBarThickness: 20, categoryPercentage: .9, barPercentage: .78 };
+
+/* clicking a bar opens the tactic's page on its source site */
+const openTactic = r => { const u = safeUrl(r.url); if (u) window.open(u, '_blank', 'noopener'); };
+const openHint = r => safeUrl(r.url) ? `Click to open on ${short(r.source)} ↗` : 'No link for this row';
+
+/* one ranked horizontal bar chart: list is already sorted best first */
+function rankChart({ id, box, list, val, pal, title, format, label, lines, pick = openTactic, hint = openHint }) {
+  $('#' + box).style.height = Math.max(180, list.length * 28 + 50) + 'px';
+  if (noData(box, id, !list.length)) return;
+  const o = commonOpts();
+  draw(id, {
+    type: 'bar', plugins: [tipLabels],
+    data: { labels: list.map(label), datasets: [{ data: list.map(val), backgroundColor: list.map((_, i) => ramp(pal, list.length > 1 ? i / (list.length - 1) : 0)), ...barStyle }] },
+    options: { ...o, indexAxis: 'y', layout: { padding: { right: 50 } },
+      interaction: { mode: 'index', axis: 'y', intersect: false },
+      scales: { x: { ...axis(title), beginAtZero: true }, y: catAxis() },
+      plugins: { ...o.plugins, tipLabels: { enabled: true, format },
+        tooltip: { ...o.plugins.tooltip, footerColor: css('--blue'), footerFont: { weight: '600', family: FONT },
+          callbacks: { title: i => list[i[0].dataIndex].tactic, label: i => lines(list[i.dataIndex]).filter(Boolean), footer: i => hint(list[i[0].dataIndex]) } } } },
+  });
+  // the whole row is the hit target, label included. Chart.js ignores clicks outside the plot area, so listen on the canvas
+  const cv = $('#' + id);
+  const rowAt = e => { const y = charts[id].scales.y; return e.offsetY >= y.top && e.offsetY <= y.bottom ? list[y.getValueForPixel(e.offsetY)] : null; };
+  cv.onclick = e => { const r = rowAt(e); if (r) pick(r); };
+  cv.onmousemove = e => { cv.style.cursor = rowAt(e) ? 'pointer' : 'default'; };
+}
+
+const CU_LBL = { game: 'per game', '38': 'per 38 games', total: 'total' };
+function setTitle(id, text) {  // chart heading and the canvas's accessible name
+  const h = document.getElementById('t-' + id), c = document.getElementById(id);
+  if (h) h.textContent = text;
+  if (c) c.setAttribute('aria-label', text);
+}
+function renderCharts(rows, f) {
+  if (typeof Chart === 'undefined') {
+    for (const id of ['boxPts', 'boxGF', 'boxGA', 'boxGD', 'boxForm'])
+      $('#' + id).replaceChildren(el('div', { class: 'empty', text: 'Could not load the chart library (needs Internet). The table still works.' }));
+    return;
+  }
+  Chart.defaults.font.family = FONT;
+  // Chart.js gives the label column at most half the chart width and clips longer labels: shorten the tactic name to fit
+  const tc = document.createElement('canvas').getContext('2d'); tc.font = `12px ${FONT}`;
+  chartsW = $('#boxPts').clientWidth;
+  const room = (chartsW - 50) / 2 - 14;  // px for the label text (minus the tick padding)
+  const label = r => {
+    let name = r.tactic || '', team = f.view === 'raw' && r.team ? r.team : '';
+    const text = () => `${name} · ${short(r.source)}${team ? ' · ' + team : ''}`;
+    const cut = s => s.slice(0, -2).trimEnd() + '…';
+    while (tc.measureText(text()).width > room && team.length > 8) team = cut(team);  // the team first (raw view)
+    while (tc.measureText(text()).width > room && name.length > 8) name = cut(name);
+    if (tc.measureText(text()).width > room) team = '';  // very narrow: tactic and source only (the tooltip names the team)
+    return text();
+  };
+  const ctxLines = r => [`${short(r.source)} · ${fmt(r.matches)} matches`, r.winPct != null ? `Win ${fmt(r.winPct, 1)}%` : null,
+    r.teams.length ? 'Team: ' + trunc(r.teams.join(', '), 60) : null];
+  const top15 = (arr, dir) => [...arr].sort((a, b) => dir * (b.v - a.v)).slice(0, 15);
+  const withValue = (arr, fn) => arr.map(r => ({ ...r, v: fn(r) })).filter(r => r.v != null);
+  // each chart has its own unit buttons (per game / per 38 games / total): its values and title follow them
+  const uP = radio('cu-cPts'), uG = radio('cu-cGF'), uA = radio('cu-cGA'), uD = radio('cu-cGD'), uF = radio('cu-cForm');
+  const dP = unitDigits(uP), dG = unitDigits(uG), dA = unitDigits(uA), dD = unitDigits(uD), dF = unitDigits(uF);
+  const scored = rows.filter(r => r.gf != null && r.ga != null && r.matches);  // only sources that publish GF and GA
+  setTitle('cPts', `Top 15 by points (${CU_LBL[uP]})`);
+  setTitle('cGF', `Top 15 most goals scored (GF, ${CU_LBL[uG]})`);
+  setTitle('cGA', `Top 15 fewest goals conceded (GA, ${CU_LBL[uA]})`);
+  setTitle('cGD', `Top 15 goal difference (GF − GA, ${CU_LBL[uD]})`);
+  setTitle('cForm', `Formation IP: average points (${CU_LBL[uF]})`);
+
+  rankChart({ id: 'cPts', box: 'boxPts', list: top15(withValue(rows, r => per(r, 'points', uP)), 1), val: r => r.v, pal: PAL.points,
+    title: `Points (${CU_LBL[uP]})`, format: v => fmt(v, dP), label,
+    lines: r => [`${fmt(r.v, dP)} points · ${CU_LBL[uP]}`, ...ctxLines(r)] });
+  rankChart({ id: 'cGF', box: 'boxGF', list: top15(withValue(scored, r => per(r, 'gf', uG)), 1), val: r => r.v, pal: PAL.scored,
+    title: `Goals scored (${CU_LBL[uG]})`, format: v => fmt(v, dG), label,
+    lines: r => [`${fmt(r.v, dG)} goals scored · ${CU_LBL[uG]}`, ...ctxLines(r)] });
+  rankChart({ id: 'cGA', box: 'boxGA', list: top15(withValue(scored, r => per(r, 'ga', uA)), -1), val: r => r.v, pal: PAL.conceded,
+    title: `Goals conceded (${CU_LBL[uA]}, fewer is better)`, format: v => fmt(v, dA), label,
+    lines: r => [`${fmt(r.v, dA)} goals conceded · ${CU_LBL[uA]}`, ...ctxLines(r)] });
+  rankChart({ id: 'cGD', box: 'boxGD', list: top15(withValue(scored, r => per(r, 'gf', uD) - per(r, 'ga', uD)), 1), val: r => r.v, pal: PAL.diff,
+    title: `Goal difference (${CU_LBL[uD]})`, format: v => signed(v, dD), label,
+    lines: r => [`GD ${signed(r.v, dD)} · ${CU_LBL[uD]}`,
+      r.ga > 0 ? `GF ÷ GA ratio ${fmt(r.gf / r.ga, 2)} (${fmt(per(r, 'gf', uD), dD)} : ${fmt(per(r, 'ga', uD), dD)})` : null, ...ctxLines(r)] });
+
+  // Formation: average points of the tactics that share a formation, in the unit chosen for this chart, rainbow
+  const byF = new Map();
+  for (const r of rows) {
+    const v = per(r, 'points', uF);
+    if (!r.formation_ip || v == null) continue;
+    const g = byF.get(r.formation_ip) || { f: r.formation_ip, s: 0, n: 0, m: 0 };
+    g.s += v; g.n++; g.m += r.matches || 0; byF.set(r.formation_ip, g);
+  }
+  const allF = [...byF.values()].map(g => ({ ...g, avg: g.s / g.n, tactic: 'Formation ' + g.f }));
+  const multi = allF.filter(g => g.n >= 2);  // a formation with a single tactic is noisy -> prefer n >= 2
+  const forms = (multi.length ? multi : allF).sort((a, b) => b.avg - a.avg).slice(0, 12);
+  rankChart({ id: 'cForm', box: 'boxForm', list: forms, val: g => g.avg, pal: PAL.rainbow, title: `Points (${CU_LBL[uF]}, average)`, format: v => fmt(v, dF),
+    label: g => `${g.f}  (n=${g.n})`, lines: g => [`${fmt(g.avg, dF)} points · ${CU_LBL[uF]}`, `${g.n} rows · ${fmt(g.m)} matches`],
+    // a formation is not one tactic: filter the dashboard to it and jump to the table
+    // (deferred: re-rendering destroys this chart, which must not happen inside its own click handler)
+    pick: g => setTimeout(() => { $('#fIp').value = g.f; state.page = 0; render(); $('.sb-nav:not(.liq-ink) > .nv[data-go="sec-table"]').click(); }),
+    hint: () => 'Click to list these tactics in the table' });
+}
+
+/* ---------- redraw ---------- */
+function render() {
+  const f = readFilters();
+  const rows = sortRows(computeRows({ ...f, tier: '' }), f.unit);   // KPIs and charts ignore the tier filter
+  // downloads are not a test result: that tile also counts catalogue rows and ignores the test thresholds
+  renderKpis(rows, computeRows({ ...f, tier: '', stats: false, minTests: 0, minMatches: 0, minWin: 0 }));
+  renderCharts(rows, f);
+  renderTable(f.tier ? sortRows(computeRows(f), f.unit) : rows, f);
+}
+let timer;
+const later = () => { clearTimeout(timer); timer = setTimeout(() => { state.page = 0; render(); }, 150); };
+$$('.filters input, .filters select').forEach(i => i.addEventListener(['checkbox', 'radio'].includes(i.type) || i.tagName === 'SELECT' ? 'change' : 'input', later));
+$$('input[name="tier"]').forEach(i => i.addEventListener('change', later));
+$('#reset').addEventListener('click', resetFilters);
+$$('input[name^="cu-"]').forEach(i => i.addEventListener('change', () => { state.page = 0; render(); }));  // per-chart unit buttons
+// bar labels are fitted to the chart width when drawn: redraw when that width changes
+let resizeT;
+new ResizeObserver(() => { const w = $('#boxPts').clientWidth; if (chartsW && Math.abs(w - chartsW) > 8) { clearTimeout(resizeT); resizeT = setTimeout(render, 250); } }).observe($('#sec-charts'));
+$('#refresh').addEventListener('click', refresh);
+$('#prev').addEventListener('click', () => { state.page--; render(); });
+$('#next').addEventListener('click', () => { state.page++; render(); });
+if (document.fonts?.ready) document.fonts.ready.then(() => DATA.records.length && render());
+load();
+</script>
+
+<script>
+/* ═══ Hero title: every letter takes the next colour of a 7-colour rainbow; it types itself in when motion is on ═══ */
+(function () {
+  const t = document.getElementById('heroText');
+  if (!t) return;
+  const caret = t.parentElement.querySelector('.caret'), text = t.textContent, n = text.length;
+  t.textContent = '';
+  const letters = [...text].map((ch, i) => {
+    const l = document.createElement('span');
+    l.className = 'hero-l'; l.textContent = ch; l.style.color = ramp(RAINBOW, n > 1 ? i / (n - 1) : 0);
+    t.append(l); return l;
+  });
+  if (document.documentElement.getAttribute('data-motion') !== 'on') return;
+  letters.forEach(l => l.classList.add('off'));
+  t.prepend(caret);
+  let k = 0;
+  (function tick() {
+    letters[k].classList.remove('off'); letters[k].after(caret);
+    if (++k < n) setTimeout(tick, 40 + Math.random() * 55);
+    else caret.remove();  // typing done: the caret stops blinking instead of looping forever
+  })();
+})();
+
+/* ═══ Liquid Glass interactions — after index_glass_feedback.html (condensed).
+   1. Liquid selection: in each group (.sb-nav, .seg) the selection is ONE glass droplet that slides to
+      the new choice (leading edge first, trailing edge follows); labels under the droplet turn white.
+   2. Press: the control squeezes slightly and light blooms from the point pressed.  3. Light follows the pointer on KPI cards.
+   Applied to controls only, never to data. With motion off the droplet simply jumps. ═══ */
+(function () {
+  const root = document.documentElement;
+  const motion = () => root.getAttribute('data-motion') === 'on';
+  const GROUPS = '.sb-nav,.seg', ITEM = 'button,label';
+  const SPRING = (() => {
+    const z = .62, zw = 6.2, w = zw / z, wd = w * Math.sqrt(1 - z * z), p = [];
+    for (let i = 0; i <= 40; i++) { const t = i / 40; p.push(i === 40 ? 1 : +(1 - Math.exp(-zw * t) * (Math.cos(wd * t) + zw / wd * Math.sin(wd * t))).toFixed(4)); }
+    const s = 'linear(' + p.join(', ') + ')';
+    try { return CSS.supports('animation-timing-function', s) ? s : 'cubic-bezier(.3,1.5,.5,1)'; } catch (e) { return 'cubic-bezier(.3,1.5,.5,1)'; }
+  })();
+  const st = document.createElement('style');
+  st.textContent = `
+.liq-on{position:relative;isolation:isolate;--liq-sh:0 1px 2px rgba(0,0,0,.18),0 6px 16px rgba(30,35,45,.30)}
+:root[data-theme="dark"] .liq-on{--liq-sh:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.5)}
+.liq-on>button,.liq-on>label{position:relative;z-index:1}
+.liq-on>.on,.liq-on>label:has(input:checked){background:transparent!important;box-shadow:none!important;color:transparent!important;transition:color .2s ease .16s}
+.liq-drop{position:absolute;left:0;top:0;z-index:0;pointer-events:none;border-radius:999px;box-shadow:var(--liq-sh);will-change:transform,width,height}
+.liq-drop i{position:absolute;inset:0;border-radius:inherit}
+.liq-fill{background-color:var(--c,#50555C);background-image:linear-gradient(180deg,rgba(255,255,255,.17),rgba(255,255,255,0) 50%,rgba(0,0,0,.14));opacity:calc(1 - .22 * var(--g,0));transition:background-color .35s ease}
+.liq-lens{background:radial-gradient(120% 90% at 30% 0%,rgba(255,255,255,.5),rgba(255,255,255,0) 55%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 1px rgba(255,255,255,.22),inset 2px 0 2px -1px rgba(70,150,255,.5),inset -2px 0 2px -1px rgba(255,160,70,.45);opacity:calc(.32 + .68 * var(--g,0))}
+.liq-ink{position:absolute!important;margin:0!important;z-index:2;pointer-events:none;background:none!important;border-color:transparent!important;
+  box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;animation:none!important;transition:none!important}
+.liq-ink *{color:#fff!important;background:transparent!important;box-shadow:none!important;border-color:transparent!important;animation:none!important;transition:none!important}
+.liq-ink .nb{background:rgba(255,255,255,.25)!important;color:#fff!important}
+.liq-ink .sb-sec{visibility:hidden}
+.sb-nav>.nv{--liq-c:#0B0B0B}.seg>label{--liq-c:#2F5BFF}
+:root[data-theme="dark"] .sb-nav>.nv{--liq-c:#2F5BFF}:root[data-theme="dark"] .seg>label{--liq-c:#2F5BFF}
+.b,.nv,.icb,.seg label,.chip{position:relative;isolation:isolate}
+.liq-glow{position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(circle at var(--px) var(--py),rgba(255,255,255,.9),rgba(160,200,255,.32) 34%,rgba(255,255,255,0) 64%) var(--px) var(--py)/30% 30% no-repeat;
+  animation:liq-glow .7s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes liq-glow{0%{opacity:0;background-size:30% 30%}22%{opacity:1}100%{opacity:0;background-size:280% 280%}}`;
+  document.head.appendChild(st);
+
+  /* 1. Liquid selection */
+  const groups = new Map();
+  const HARD = [480, .6], SOFT = [190, .78];
+  const EDGES = ['x0', 'x1', 'y0', 'y1'];
+  const itemsOf = g => [...g.children].filter(e => e.matches(ITEM) && !e.hidden);
+  const isSel = e => e.classList.contains('on') || !!e.querySelector('input:checked');
+  const sigOf = list => list.map(e => e.textContent.trim()).join('|');
+  function attach(s) {
+    s.drop = document.createElement('span'); s.drop.className = 'liq-drop'; s.drop.setAttribute('aria-hidden', 'true');
+    s.drop.innerHTML = '<i class="liq-fill"></i><i class="liq-lens"></i>';
+    s.g.prepend(s.drop); s.g.classList.add('liq-on');
+    clone(s);
+  }
+  function clone(s) {   // white copy of the labels, clipped to the droplet
+    const g = s.g;
+    if (s.ink) s.ink.remove();
+    const ink = g.cloneNode(true);
+    ink.removeAttribute('id'); ink.classList.remove('liq-on', 'mo-i'); ink.classList.add('liq-ink');
+    ink.setAttribute('aria-hidden', 'true'); ink.inert = true;
+    ink.querySelectorAll('.liq-drop,.liq-ink,.liq-glow,input').forEach(e => e.remove());
+    ink.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    g.appendChild(ink); s.ink = ink; s.sig = sigOf(itemsOf(g));
+    size(s); target(s, true);
+  }
+  function size(s) {
+    const g = s.g, cs = getComputedStyle(g);
+    s.bl = parseFloat(cs.borderLeftWidth) || 0; s.bt = parseFloat(cs.borderTopWidth) || 0;
+    s.ow = g.offsetWidth; s.oh = g.offsetHeight;
+    s.iw = (parseFloat(cs.width) || g.offsetWidth) + .5; s.ih = parseFloat(cs.height) || g.offsetHeight;
+    Object.assign(s.ink.style, { left: -s.bl + 'px', top: -s.bt + 'px', width: s.iw + 'px', height: s.ih + 'px' });
+  }
+  function target(s, snap) {
+    const sel = itemsOf(s.g).find(isSel);
+    if (!sel || !s.g.offsetWidth) { s.drop.style.opacity = sel ? '' : '0'; s.ink.style.clipPath = 'inset(50%)'; s.sel = sel || null; if (!sel) s.cur = null; return; }
+    const t = { x0: sel.offsetLeft, y0: sel.offsetTop, x1: sel.offsetLeft + sel.offsetWidth, y1: sel.offsetTop + sel.offsetHeight };
+    s.drop.style.opacity = '';
+    s.drop.style.setProperty('--c', getComputedStyle(sel).getPropertyValue('--liq-c').trim() || '#50555C');
+    const moved = !s.tgt || EDGES.some(k => Math.abs(s.tgt[k] - t[k]) > .5);
+    s.tgt = t; s.sel = sel;
+    if (snap || !s.cur || !motion()) { s.cur = Object.assign({}, t); s.vel = { x0: 0, x1: 0, y0: 0, y1: 0 }; cancelAnimationFrame(s.raf); s.raf = 0; draw(s); return; }
+    if (moved && !s.raf) { s.last = performance.now(); s.raf = requestAnimationFrame(n => step(s, n)); }
+  }
+  function step(s, now) {
+    const c = s.cur, v = s.vel, t = s.tgt, dt = Math.min(.05, (now - s.last) / 1000); s.last = now;
+    const dx = (t.x0 + t.x1) - (c.x0 + c.x1), dy = (t.y0 + t.y1) - (c.y0 + c.y1);
+    const K = { x0: dx < 0 ? HARD : SOFT, x1: dx > 0 ? HARD : SOFT, y0: dy < 0 ? HARD : SOFT, y1: dy > 0 ? HARD : SOFT };
+    for (let n = Math.max(1, Math.ceil(dt * 240)), h = dt / n; n--;)
+      EDGES.forEach(k => { const [kk, z] = K[k]; v[k] += (-kk * (c[k] - t[k]) - 2 * z * Math.sqrt(kk) * v[k]) * h; c[k] += v[k] * h; });
+    if (c.x1 - c.x0 < 12) c.x1 = c.x0 + 12; if (c.y1 - c.y0 < 12) c.y1 = c.y0 + 12;
+    draw(s);
+    if (EDGES.every(k => Math.abs(c[k] - t[k]) < .3 && Math.abs(v[k]) < 6)) { Object.assign(c, t); EDGES.forEach(k => { v[k] = 0; }); draw(s); s.raf = 0; }
+    else s.raf = requestAnimationFrame(n => step(s, n));
+  }
+  function draw(s) {
+    const c = s.cur, t = s.tgt, v = s.vel;
+    let w = c.x1 - c.x0, h = c.y1 - c.y0;
+    const px = Math.min((t.x1 - t.x0) * .1, Math.max(0, h - (t.y1 - t.y0)) * .05);
+    const py = Math.min((t.y1 - t.y0) * .12, Math.max(0, w - (t.x1 - t.x0)) * .05);
+    const x = c.x0 + px, y = c.y0 + py; w -= 2 * px; h -= 2 * py;
+    const g = Math.min(1, Math.hypot(v.x0 + v.x1, v.y0 + v.y1) / 1800);
+    const r = Math.min(w, h) / 2, X = x + s.bl, Y = y + s.bt;
+    Object.assign(s.drop.style, { transform: 'translate(' + x + 'px,' + y + 'px)', width: w + 'px', height: h + 'px' });
+    s.drop.style.setProperty('--g', g.toFixed(3));
+    s.ink.style.clipPath = 'inset(' + Y + 'px ' + (s.iw - X - w) + 'px ' + (s.ih - Y - h) + 'px ' + X + 'px round ' + r + 'px)';
+  }
+  function scan() {
+    document.querySelectorAll(GROUPS).forEach(g => {
+      if (g.classList.contains('liq-ink') || g.closest('.liq-ink')) return;
+      let s = groups.get(g);
+      if (!s) { s = { g }; groups.set(g, s); attach(s); ro.observe(g); target(s, true); return; }
+      if (!s.drop.isConnected || s.drop.parentNode !== g) { g.prepend(s.drop); g.classList.add('liq-on'); clone(s); }
+      else if (s.sig !== sigOf(itemsOf(g)) || !s.ink.isConnected) clone(s);
+      const sel = itemsOf(g).find(isSel);
+      if (sel !== s.sel || !s.tgt) target(s, false);
+      else if (s.ow !== g.offsetWidth || s.oh !== g.offsetHeight) { size(s); target(s, true); }
+    });
+  }
+  const ro = new ResizeObserver(es => es.forEach(e => { const s = groups.get(e.target); if (s && s.ink) { size(s); target(s, true); } }));
+  let pend = 0;
+  const later = () => { if (!pend) pend = requestAnimationFrame(() => { pend = 0; scan(); }); };
+  document.querySelectorAll(GROUPS).forEach(g => new MutationObserver(recs => {
+    if (recs.some(r => { const t = r.target.nodeType === 1 ? r.target : r.target.parentElement; return !(t && t.closest('.liq-ink,.liq-drop')); })) later();
+  }).observe(g, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] }));
+  document.addEventListener('change', later, true);
+  new MutationObserver(() => groups.forEach(s => target(s, true))).observe(root, { attributes: true, attributeFilter: ['data-theme'] });  // droplet colour follows the theme
+  scan();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => groups.forEach(s => { size(s); target(s, true); }));
+
+  /* 2. Press: squeeze + light bloom */
+  const PRESS = '.b,.nv,.icb,.seg label,.chip';
+  document.addEventListener('pointerdown', e => {
+    if (!motion() || e.button > 0) return;
+    const el = e.target.closest(PRESS);
+    if (!el || el.disabled || el.closest('.liq-ink')) return;
+    const r = el.getBoundingClientRect(), glow = document.createElement('span');
+    glow.className = 'liq-glow'; glow.setAttribute('aria-hidden', 'true');
+    glow.style.setProperty('--px', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
+    glow.style.setProperty('--py', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
+    glow.addEventListener('animationend', () => glow.remove());
+    el.appendChild(glow);
+    if (el.parentElement && el.parentElement.classList.contains('liq-on')) return;
+    const k = 1 - Math.max(.02, Math.min(.06, 4 / Math.max(r.width, r.height)));
+    const down = el.animate([{ transform: 'scale(1)' }, { transform: 'scale(' + k + ')' }], { duration: 150, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' });
+    const up = () => {
+      removeEventListener('pointerup', up, true); removeEventListener('pointercancel', up, true);
+      el.animate([{ transform: 'scale(' + k + ')' }, { transform: 'scale(1)' }], { duration: 620, easing: SPRING });
+      down.cancel();
+    };
+    addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
+  }, true);
+
+  /* 3. Light following the pointer on KPI cards */
+  let hot = null;
+  document.addEventListener('pointermove', e => {
+    const k = motion() && e.target.closest ? e.target.closest('.kpi') : null;
+    if (hot && hot !== k) { hot.style.removeProperty('--mx'); hot.style.removeProperty('--my'); }
+    hot = k; if (!k) return;
+    const r = k.getBoundingClientRect();
+    k.style.setProperty('--mx', (e.clientX - r.left).toFixed(0) + 'px'); k.style.setProperty('--my', (e.clientY - r.top).toFixed(0) + 'px');
+  }, { passive: true });
+})();
+</script>
+</body>
+</html>

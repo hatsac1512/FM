@@ -1,0 +1,16 @@
+# secrets: never commit a key
+config.json
+
+# scraped data: it is third-party content, so it is rebuilt by Update instead of published in the repo
+data/tactics.json
+
+# local files that belong to other projects or are too large for the app
+Lovable 2.0  Recent.mp4
+anh nen 1.jpg
+index_glass_feedback.html
+
+# Python and tooling
+__pycache__/
+*.pyc
+.venv/
+.playwright-mcp/

@@ -1,0 +1,10 @@
+các nguồn tactics FM 2027
+1. https://fm-arena.com/
+2. https://sortitoutsi.net/football-manager-2027-tactics
+3. https://fm-base.co.uk/forums/fm27-tactics.301/
+4. https://www.fmscout.com/c-fm27-tactics.html
+5. https://www.fmkorea.com/
+6. Youtube
+7. nguồn khác
+
+hãy xây dựng 1 dashboard phân tích các tactics với các chỉ số: số lượt test, đội hình, Win %,GF,GA,GD,số trận,số điểm,
